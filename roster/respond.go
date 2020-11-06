@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,7 +30,7 @@ Day.Thursday
 */
 func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 	var wg sync.WaitGroup
-	resp, err := http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html")
+	resp, err := http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.txt")
 	if err != nil {
 		return err
 	}
@@ -38,11 +39,12 @@ func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 		return err
 	}
 	oldread, err := download("joshcarp-election", "old")
-
 	old, err := ioutil.ReadAll(oldread)
-	if string(contents) == string(old) {
+	d := diff(string(contents), string(old))
+	if len(d) == 0 {
 		return nil
 	}
+
 	upload("joshcarp-election", "old", bytes.NewReader(contents))
 	a := f.Collection("webhooks")
 	docs := a.Documents(ctx)
@@ -57,7 +59,7 @@ func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 				secret.IncomingWebhook.URL,
 				s.Client,
 				&slack.WebhookMessage{
-					Text: "New Election update: https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html",
+					Text: "New Election update: https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html \n"+ strings.Join(d, "\n"),
 				})
 			wg.Done()
 		}()
@@ -131,4 +133,24 @@ func upload(bucket string, object string, r io.Reader) error {
 		return fmt.Errorf("Writer.Close: %v", err)
 	}
 	return nil
+}
+
+func diff(text1, text2 string)[]string{
+	a := strings.Split(text1, "\n")
+	amap := make(map[string]bool)
+	b := strings.Split(text2, "\n")
+	bmap := make(map[string]bool)
+	for _, a2 := range a{
+		amap[a2] = true
+	}
+	for _, b2 := range b{
+		bmap[b2] = true
+	}
+	final := []string{}
+	for key, _ := range bmap{
+		if amap[key] == false{
+			final = append(final, key)
+		}
+	}
+	return final
 }
