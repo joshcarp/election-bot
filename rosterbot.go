@@ -1,13 +1,13 @@
-package rosterbot
+package electionbot
 
 import (
 	"context"
-	"github.com/joshcarp/rosterbot/database"
+	"github.com/joshcarp/electionbot/database"
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/joshcarp/rosterbot/roster"
+	"github.com/joshcarp/electionbot/roster"
 )
 
 func RespondHandler(w http.ResponseWriter, r *http.Request) {

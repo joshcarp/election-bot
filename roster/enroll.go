@@ -22,5 +22,5 @@ func (s Server) Enroll(ctx context.Context, code string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("Rosterbot Installed on: %s", accessToken.Team.Name), nil
+	return fmt.Sprintf("electionbot Installed on: %s", accessToken.Team.Name), nil
 }

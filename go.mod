@@ -1,4 +1,4 @@
-module github.com/joshcarp/rosterbot
+module github.com/joshcarp/electionbot
 
 go 1.14
 

@@ -3,7 +3,7 @@ package roster
 import (
 	"net/http"
 
-	"github.com/joshcarp/rosterbot/database"
+	"github.com/joshcarp/electionbot/database"
 )
 
 type Server struct {

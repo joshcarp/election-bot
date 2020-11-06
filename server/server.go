@@ -3,10 +3,10 @@ package main
 import (
 	"net/http"
 
-	"github.com/joshcarp/rosterbot"
+	"github.com/joshcarp/electionbot"
 )
 
 func main() {
-	http.HandleFunc("/", rosterbot.RespondHandler)
+	http.HandleFunc("/", electionbot.RespondHandler)
 	http.ListenAndServe(":8081", nil)
 }
