@@ -5,14 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
+	"cloud.google.com/go/firestore"
+	"cloud.google.com/go/storage"
 
-	"github.com/joshcarp/rosterbot/cron"
+	"github.com/pkg/errors"
 
 	"github.com/slack-go/slack"
 )
@@ -24,37 +27,37 @@ Day.Wednesday
 Day.Thursday
 
 */
-func (s Server) Respond(ctx context.Context, time2 time.Time) error {
+func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 	var wg sync.WaitGroup
-	filters := cron.Expand(cron.Time(time2))
-	a, err := s.Database.Filter("subscriptions", "==", "Time.Complete.", filters)
+	resp, err := http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html")
 	if err != nil {
 		return err
 	}
-	for _, sub := range a {
-		webhook, err := s.GetSecret(sub.TeamID + "-" + sub.ChannelID)
-		if err != nil {
-			continue
-		}
-		message := sub.Message
-		if len(sub.Users) > 0 {
-			steps := sub.Time.Steps(sub.StartTime, time2) - 1
-			if steps < 0 {
-				steps++
-			}
-			if sub.Users[steps%len(sub.Users)] == "{skip}" {
-				continue
-			}
-			message += " " + sub.Users[steps%len(sub.Users)]
-		}
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	oldread, err := download("joshcarp-election", "old")
+
+	old, err := ioutil.ReadAll(oldread)
+	if string(contents) == string(old) {
+		return nil
+	}
+	upload("joshcarp-election", "old", bytes.NewReader(contents))
+	a := f.Collection("webhooks")
+	docs := a.Documents(ctx)
+	docs1, _ := docs.GetAll()
+	for _, sub := range docs1 {
 		wg.Add(1)
 		go func() {
+			var secret slack.OAuthV2Response
+			sub.DataTo(&secret)
 			PostWebhookCustomHTTPContext(
 				ctx,
-				webhook.IncomingWebhook.URL,
+				secret.IncomingWebhook.URL,
 				s.Client,
 				&slack.WebhookMessage{
-					Text: message,
+					Text: "New Election update: https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html",
 				})
 			wg.Done()
 		}()
@@ -99,5 +102,33 @@ func checkStatusCode(resp *http.Response) error {
 		return fmt.Errorf("%d: %s", resp.StatusCode, resp.Status)
 	}
 
+	return nil
+}
+
+func download(bucket, object string) (io.Reader, error) {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+	return client.Bucket(bucket).Object(object).NewReader(ctx)
+}
+
+func upload(bucket string, object string, r io.Reader) error {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+
+	wc := client.Bucket(bucket).Object(object).NewWriter(ctx)
+	if _, err = io.Copy(wc, r); err != nil {
+		return fmt.Errorf("io.Copy: %v", err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("Writer.Close: %v", err)
+	}
 	return nil
 }

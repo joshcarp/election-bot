@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.68.0
 	cloud.google.com/go/firestore v1.3.0
 	cloud.google.com/go/pubsub v1.8.1
+	cloud.google.com/go/storage v1.10.0
 	github.com/pkg/errors v0.8.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/slack-go/slack v0.6.6

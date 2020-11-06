@@ -10,10 +10,10 @@ type Server struct {
 	Client            HttpClient
 	SlackClientID     string
 	SlackClientSecret string
-	Database          database.Database
+	Database          database.Firestore
 }
 
-func NewServer(slackClientID, slackClientSecret string, db database.Database, client HttpClient) Server {
+func NewServer(slackClientID, slackClientSecret string, db database.Firestore, client HttpClient) Server {
 	return Server{
 		Client:            client,
 		SlackClientID:     slackClientID,

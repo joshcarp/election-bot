@@ -2,18 +2,12 @@ package rosterbot
 
 import (
 	"context"
+	"github.com/joshcarp/rosterbot/database"
 	"log"
 	"net/http"
 	"os"
-	"strings"
-	"time"
-
-	"github.com/joshcarp/rosterbot/database"
-
-	"github.com/joshcarp/rosterbot/command"
 
 	"github.com/joshcarp/rosterbot/roster"
-	"github.com/slack-go/slack"
 )
 
 func RespondHandler(w http.ResponseWriter, r *http.Request) {
@@ -22,7 +16,7 @@ func RespondHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if err := ser.Respond(context.Background(), time.Now()); err != nil {
+	if err := ser.Respond(context.Background(), ser.Database.Client); err != nil {
 		log.Println(err)
 	}
 }
@@ -35,35 +29,6 @@ func Enroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write([]byte(message))
-}
-
-func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
-	ser, err := server()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	cmd, _ := slack.SlashCommandParse(r)
-	switch strings.ToLower(command.MainCommand(cmd.Text)) {
-	case "add":
-		message, err := ser.Subscribe(context.Background(), cmd, time.Now())
-		if err != nil {
-			log.Println(err)
-			w.Write([]byte(err.Error()))
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.Write([]byte(message))
-	case "remove":
-		message, err := ser.Unsubscribe(cmd)
-		w.Write([]byte(message))
-		if err != nil {
-			log.Println(err)
-			w.Write([]byte("There was a problem unsubscribing"))
-		}
-	default:
-		w.Write([]byte("Command not known, please specify /roster add or /roster remove"))
-	}
 }
 
 func server() (roster.Server, error) {
