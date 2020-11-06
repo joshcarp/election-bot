@@ -30,7 +30,7 @@ Day.Thursday
 */
 func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 	var wg sync.WaitGroup
-	resp, err := http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.txt")
+	resp, err := http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.csv")
 	if err != nil {
 		return err
 	}
