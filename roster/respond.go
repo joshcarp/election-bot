@@ -40,7 +40,7 @@ func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 	}
 	oldread, err := download("joshcarp-election", "old")
 	old, err := ioutil.ReadAll(oldread)
-	d := diff(string(contents), string(old))
+	d := diff(string(old), string(contents))
 	if len(d) == 0 {
 		return nil
 	}
@@ -135,20 +135,23 @@ func upload(bucket string, object string, r io.Reader) error {
 	return nil
 }
 
-func diff(text1, text2 string)[]string{
+func diff(text1, text2 string) []string {
 	a := strings.Split(text1, "\n")
 	amap := make(map[string]bool)
 	b := strings.Split(text2, "\n")
 	bmap := make(map[string]bool)
-	for _, a2 := range a{
+	for _, a2 := range a {
 		amap[a2] = true
 	}
-	for _, b2 := range b{
+	for _, b2 := range b {
 		bmap[b2] = true
 	}
 	final := []string{}
-	for key, _ := range bmap{
-		if amap[key] == false{
+	if len(bmap) < len(amap) {
+		bmap, amap = amap, bmap
+	}
+	for key, _ := range bmap {
+		if amap[key] == false {
 			final = append(final, key)
 		}
 	}
