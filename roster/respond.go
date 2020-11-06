@@ -29,36 +29,36 @@ Day.Wednesday
 Day.Thursday
 
 */
+
+func getStats(s string)string{
+	var re = regexp.MustCompile(`(?m)\S* \(EV: \d*\) Total Votes: .*`)
+	var res string
+	for _, b := range re.FindAllStringSubmatch(s, -1){
+		for _, c := range b{
+			res += c + "\n"
+		}
+	}
+	return res
+}
 func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 	var wg sync.WaitGroup
-	resp, err := http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.csv")
-	if err != nil {
-		return err
-	}
-	contents, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	oldread, err := download("joshcarp-election", "old")
-	old, err := ioutil.ReadAll(oldread)
-	d := diff(string(old), string(contents))
+	resp, _ := http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.txt")
+	contents, _ := ioutil.ReadAll(resp.Body)
+
+	res := getStats(string(contents))
+
+	oldread, _ := download("joshcarp-election", "old")
+	old, _ := ioutil.ReadAll(oldread)
+	d := diff(string(old), res)
 	if len(d) == 0 {
 		return nil
 	}
-	upload("joshcarp-election", "old", bytes.NewReader(contents))
-
-	resp, _ = http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.txt")
-	contents, _ = ioutil.ReadAll(resp.Body)
-	var re = regexp.MustCompile(`(?m)\S* \(EV: \d*\) Total Votes: .*`)
-	res := []string{}
-	for _, b := range re.FindAllStringSubmatch(string(contents), -1){
-		for _, c := range b{
-			res = append(res, c)
-		}
-	}
+	current := res
+	upload("joshcarp-election", "old", strings.NewReader(current))
 	a := f.Collection("webhooks")
 	docs := a.Documents(ctx)
 	docs1, _ := docs.GetAll()
+ 	changed := strings.Join(d, "\n")
 	for _, sub := range docs1 {
 		wg.Add(1)
 		go func(sub1 firestore.DocumentSnapshot) {
@@ -69,7 +69,7 @@ func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 				secret.IncomingWebhook.URL,
 				s.Client,
 				&slack.WebhookMessage{
-					Text: "New Election update: https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html \n"+ strings.Join(res, "\n"),
+					Text: "New Election update: https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html \n"+ changed,
 				})
 			wg.Done()
 		}(*sub)
