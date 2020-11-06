@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,26 +45,34 @@ func (s Server) Respond(ctx context.Context, f *firestore.Client) error {
 	if len(d) == 0 {
 		return nil
 	}
-
 	upload("joshcarp-election", "old", bytes.NewReader(contents))
+
+	resp, _ = http.Get("https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.txt")
+	contents, _ = ioutil.ReadAll(resp.Body)
+	var re = regexp.MustCompile(`(?m)\S* \(EV: \d*\) Total Votes: .*`)
+	res := []string{}
+	for _, b := range re.FindAllStringSubmatch(string(contents), -1){
+		for _, c := range b{
+			res = append(res, c)
+		}
+	}
 	a := f.Collection("webhooks")
 	docs := a.Documents(ctx)
 	docs1, _ := docs.GetAll()
 	for _, sub := range docs1 {
 		wg.Add(1)
-		go func() {
+		go func(sub1 firestore.DocumentSnapshot) {
 			var secret slack.OAuthV2Response
-			sub.DataTo(&secret)
+			sub1.DataTo(&secret)
 			PostWebhookCustomHTTPContext(
 				ctx,
 				secret.IncomingWebhook.URL,
 				s.Client,
 				&slack.WebhookMessage{
-					Text: "New Election update: https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html \n"+ strings.Join(d, "\n"),
+					Text: "New Election update: https://alex.github.io/nyt-2020-election-scraper/battleground-state-changes.html \n"+ strings.Join(res, "\n"),
 				})
 			wg.Done()
-		}()
-
+		}(*sub)
 	}
 	wg.Wait()
 	return nil
